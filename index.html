@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Radha Krishna Dot Animation</title>
+
+<style>
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+html, body {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: #05030a;
+}
+
+canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+</style>
+</head>
+
+<body>
+
+<canvas id="canvas"></canvas>
+
+<script>
+
+const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext("2d");
+
+let W, H;
+let particles = [];
+let image = new Image();
+
+image.src = "radha-krishna.jpg";
+
+
+/* =========================
+   CANVAS SIZE
+========================= */
+
+function resizeCanvas() {
+
+    W = window.innerWidth;
+    H = window.innerHeight;
+
+    canvas.width = W;
+    canvas.height = H;
+
+    if (image.complete) {
+        createDots();
+    }
+}
+
+window.addEventListener("resize", resizeCanvas);
+
+
+/* =========================
+   CREATE DOTS FROM IMAGE
+========================= */
+
+function createDots() {
+
+    particles = [];
+
+    const maxWidth = W * 0.94;
+    const maxHeight = H * 0.92;
+
+    const scale = Math.min(
+        maxWidth / image.naturalWidth,
+        maxHeight / image.naturalHeight
+    );
+
+    const imgW = image.naturalWidth * scale;
+    const imgH = image.naturalHeight * scale;
+
+    const offsetX = (W - imgW) / 2;
+    const offsetY = (H - imgH) / 2;
+
+
+    /* Small canvas for sampling */
+
+    const smallCanvas = document.createElement("canvas");
+
+    const smallWidth = Math.floor(imgW / 3);
+    const smallHeight = Math.floor(imgH / 3);
+
+    smallCanvas.width = smallWidth;
+    smallCanvas.height = smallHeight;
+
+    const smallCtx = smallCanvas.getContext("2d");
+
+    smallCtx.drawImage(
+        image,
+        0,
+        0,
+        smallWidth,
+        smallHeight
+    );
+
+
+    const pixels = smallCtx.getImageData(
+        0,
+        0,
+        smallWidth,
+        smallHeight
+    ).data;
+
+
+    /* Create particles */
+
+    for (let y = 0; y < smallHeight; y++) {
+
+        for (let x = 0; x < smallWidth; x++) {
+
+            const index =
+                (y * smallWidth + x) * 4;
+
+            const r = pixels[index];
+            const g = pixels[index + 1];
+            const b = pixels[index + 2];
+            const a = pixels[index + 3];
+
+            if (a < 30) continue;
+
+
+            /* Randomly reduce number of dots */
+
+            if (Math.random() > 0.42) continue;
+
+
+            const targetX =
+                offsetX +
+                (x / smallWidth) * imgW;
+
+            const targetY =
+                offsetY +
+                (y / smallHeight) * imgH;
+
+
+            particles.push({
+
+                /* Starting position */
+
+                x: Math.random() * W,
+                y: Math.random() * H,
+
+
+                /* Final position */
+
+                tx: targetX,
+                ty: targetY,
+
+
+                /* Original image colour */
+
+                r: r,
+                g: g,
+                b: b,
+
+
+                /* Dot size */
+
+                size:
+                    Math.random() * 1.5 + 0.5,
+
+
+                /* Different arrival time */
+
+                delay:
+                    Math.random() * 1500
+            });
+        }
+    }
+
+    startAnimation();
+}
+
+
+/* =========================
+   ANIMATION
+========================= */
+
+let animationStart;
+
+function startAnimation() {
+
+    animationStart = performance.now();
+
+    requestAnimationFrame(animate);
+}
+
+
+function animate(time) {
+
+    ctx.fillStyle = "#05030a";
+
+    ctx.fillRect(
+        0,
+        0,
+        W,
+        H
+    );
+
+
+    const elapsed =
+        time - animationStart;
+
+
+    let finished = true;
+
+
+    particles.forEach(p => {
+
+        let progress =
+            (elapsed - p.delay) / 4500;
+
+
+        if (progress < 0) {
+
+            progress = 0;
+            finished = false;
+
+        }
+
+
+        if (progress < 1) {
+
+            finished = false;
+
+        }
+
+
+        if (progress > 1) {
+
+            progress = 1;
+
+        }
+
+
+        /* Smooth movement */
+
+        const smooth =
+            progress *
+            progress *
+            (3 - 2 * progress);
+
+
+        const currentX =
+            p.x +
+            (p.tx - p.x) * smooth;
+
+
+        const currentY =
+            p.y +
+            (p.ty - p.y) * smooth;
+
+
+        /* Glowing dot */
+
+        ctx.beginPath();
+
+        ctx.arc(
+            currentX,
+            currentY,
+            p.size,
+            0,
+            Math.PI * 2
+        );
+
+
+        ctx.fillStyle =
+            `rgba(${p.r},${p.g},${p.b},0.9)`;
+
+
+        ctx.shadowBlur = 6;
+
+        ctx.shadowColor =
+            `rgb(${p.r},${p.g},${p.b})`;
+
+
+        ctx.fill();
+
+        ctx.shadowBlur = 0;
+
+    });
+
+
+    /* Repeat automatically */
+
+    if (finished) {
+
+        setTimeout(() => {
+
+            createDots();
+
+        }, 2500);
+
+        return;
+    }
+
+
+    requestAnimationFrame(animate);
+}
+
+
+/* =========================
+   START
+========================= */
+
+image.onload = function () {
+
+    resizeCanvas();
+
+};
+
+</script>
+
+</body>
+</html>
