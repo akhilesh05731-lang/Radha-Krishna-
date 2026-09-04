@@ -12,15 +12,14 @@
     box-sizing: border-box;
 }
 
-html, body {
-    width: 100%;
-    height: 100%;
+body {
     overflow: hidden;
     background: #05030a;
 }
 
 canvas {
-    display: block;
+    position: fixed;
+    inset: 0;
     width: 100%;
     height: 100%;
 }
@@ -32,295 +31,206 @@ canvas {
 <canvas id="canvas"></canvas>
 
 <script>
-
 const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
 
 let W, H;
 let particles = [];
-let image = new Image();
+let targetPoints = [];
 
-image.src = "radha-krishna.jpg";
+function resize() {
+    W = canvas.width = window.innerWidth;
+    H = canvas.height = window.innerHeight;
+}
+
+resize();
+window.addEventListener("resize", resize);
 
 
-/* =========================
-   CANVAS SIZE
-========================= */
+/* --------------------------------
+   RADHA-KRISHNA SILHOUETTE
+   -------------------------------- */
 
-function resizeCanvas() {
+function createTarget() {
 
-    W = window.innerWidth;
-    H = window.innerHeight;
+    targetPoints = [];
 
-    canvas.width = W;
-    canvas.height = H;
+    const cx = W / 2;
+    const cy = H / 2;
 
-    if (image.complete) {
-        createDots();
+    // Krishna head
+    addCircle(cx - 55, cy - 95, 70);
+
+    // Radha head
+    addCircle(cx + 55, cy - 80, 62);
+
+    // Krishna body
+    addEllipse(cx - 55, cy + 45, 75, 150);
+
+    // Radha body
+    addEllipse(cx + 55, cy + 60, 80, 160);
+
+    // Peacock feather
+    addEllipse(cx - 5, cy - 185, 22, 55);
+
+    // Flute
+    addLine(
+        cx - 125, cy - 20,
+        cx + 110, cy + 10,
+        8
+    );
+
+    // Decorative aura
+    addRing(cx, cy + 5, 205);
+    addRing(cx, cy + 5, 225);
+}
+
+function addCircle(x, y, r) {
+
+    for (let a = 0; a < Math.PI * 2; a += 0.035) {
+
+        const radius = r * Math.sqrt(Math.random());
+
+        targetPoints.push({
+            x: x + Math.cos(a) * radius,
+            y: y + Math.sin(a) * radius
+        });
     }
 }
 
-window.addEventListener("resize", resizeCanvas);
+function addEllipse(x, y, rx, ry) {
+
+    for (let a = 0; a < Math.PI * 2; a += 0.04) {
+
+        const radius = Math.sqrt(Math.random());
+
+        targetPoints.push({
+            x: x + Math.cos(a) * rx * radius,
+            y: y + Math.sin(a) * ry * radius
+        });
+    }
+}
+
+function addLine(x1, y1, x2, y2, thickness) {
+
+    const length = Math.hypot(x2-x1, y2-y1);
+    const count = Math.floor(length / 3);
+
+    for (let i = 0; i < count; i++) {
+
+        const t = i / count;
+
+        targetPoints.push({
+            x: x1 + (x2-x1)*t + (Math.random()-0.5)*thickness,
+            y: y1 + (y2-y1)*t + (Math.random()-0.5)*thickness
+        });
+    }
+}
+
+function addRing(x, y, r) {
+
+    for (let a = 0; a < Math.PI * 2; a += 0.025) {
+
+        targetPoints.push({
+            x: x + Math.cos(a) * r,
+            y: y + Math.sin(a) * r
+        });
+    }
+}
 
 
-/* =========================
-   CREATE DOTS FROM IMAGE
-========================= */
+/* --------------------------------
+   CREATE PARTICLES
+   -------------------------------- */
 
-function createDots() {
+function createParticles() {
 
     particles = [];
 
-    const maxWidth = W * 0.94;
-    const maxHeight = H * 0.92;
+    targetPoints.forEach((p, i) => {
 
-    const scale = Math.min(
-        maxWidth / image.naturalWidth,
-        maxHeight / image.naturalHeight
-    );
+        particles.push({
 
-    const imgW = image.naturalWidth * scale;
-    const imgH = image.naturalHeight * scale;
+            x: Math.random() * W,
+            y: Math.random() * H,
 
-    const offsetX = (W - imgW) / 2;
-    const offsetY = (H - imgH) / 2;
+            tx: p.x,
+            ty: p.y,
 
+            size: Math.random() * 2.2 + 0.5,
 
-    /* Small canvas for sampling */
+            delay: Math.random() * 120,
 
-    const smallCanvas = document.createElement("canvas");
-
-    const smallWidth = Math.floor(imgW / 3);
-    const smallHeight = Math.floor(imgH / 3);
-
-    smallCanvas.width = smallWidth;
-    smallCanvas.height = smallHeight;
-
-    const smallCtx = smallCanvas.getContext("2d");
-
-    smallCtx.drawImage(
-        image,
-        0,
-        0,
-        smallWidth,
-        smallHeight
-    );
-
-
-    const pixels = smallCtx.getImageData(
-        0,
-        0,
-        smallWidth,
-        smallHeight
-    ).data;
-
-
-    /* Create particles */
-
-    for (let y = 0; y < smallHeight; y++) {
-
-        for (let x = 0; x < smallWidth; x++) {
-
-            const index =
-                (y * smallWidth + x) * 4;
-
-            const r = pixels[index];
-            const g = pixels[index + 1];
-            const b = pixels[index + 2];
-            const a = pixels[index + 3];
-
-            if (a < 30) continue;
-
-
-            /* Randomly reduce number of dots */
-
-            if (Math.random() > 0.42) continue;
-
-
-            const targetX =
-                offsetX +
-                (x / smallWidth) * imgW;
-
-            const targetY =
-                offsetY +
-                (y / smallHeight) * imgH;
-
-
-            particles.push({
-
-                /* Starting position */
-
-                x: Math.random() * W,
-                y: Math.random() * H,
-
-
-                /* Final position */
-
-                tx: targetX,
-                ty: targetY,
-
-
-                /* Original image colour */
-
-                r: r,
-                g: g,
-                b: b,
-
-
-                /* Dot size */
-
-                size:
-                    Math.random() * 1.5 + 0.5,
-
-
-                /* Different arrival time */
-
-                delay:
-                    Math.random() * 1500
-            });
-        }
-    }
-
-    startAnimation();
+            progress: 0
+        });
+    });
 }
 
 
-/* =========================
+/* --------------------------------
    ANIMATION
-========================= */
+   -------------------------------- */
 
-let animationStart;
-
-function startAnimation() {
-
-    animationStart = performance.now();
-
-    requestAnimationFrame(animate);
-}
-
+let startTime = performance.now();
 
 function animate(time) {
 
+    ctx.clearRect(0, 0, W, H);
+
+    // dark background
     ctx.fillStyle = "#05030a";
+    ctx.fillRect(0, 0, W, H);
 
-    ctx.fillRect(
-        0,
-        0,
-        W,
-        H
-    );
+    const elapsed = time - startTime;
 
+    particles.forEach((p) => {
 
-    const elapsed =
-        time - animationStart;
+        let t = Math.max(
+            0,
+            Math.min(1, (elapsed - p.delay) / 3500)
+        );
 
+        // smooth movement
+        const ease = t * t * (3 - 2 * t);
 
-    let finished = true;
+        p.x += (p.tx - p.x) * 0.035;
+        p.y += (p.ty - p.y) * 0.035;
 
-
-    particles.forEach(p => {
-
-        let progress =
-            (elapsed - p.delay) / 4500;
-
-
-        if (progress < 0) {
-
-            progress = 0;
-            finished = false;
-
-        }
-
-
-        if (progress < 1) {
-
-            finished = false;
-
-        }
-
-
-        if (progress > 1) {
-
-            progress = 1;
-
-        }
-
-
-        /* Smooth movement */
-
-        const smooth =
-            progress *
-            progress *
-            (3 - 2 * progress);
-
-
-        const currentX =
-            p.x +
-            (p.tx - p.x) * smooth;
-
-
-        const currentY =
-            p.y +
-            (p.ty - p.y) * smooth;
-
-
-        /* Glowing dot */
+        const glow = 0.5 + Math.sin(time * 0.004 + p.tx) * 0.5;
 
         ctx.beginPath();
 
         ctx.arc(
-            currentX,
-            currentY,
+            p.x,
+            p.y,
             p.size,
             0,
             Math.PI * 2
         );
 
-
         ctx.fillStyle =
-            `rgba(${p.r},${p.g},${p.b},0.9)`;
+            `rgba(255, ${150 + glow*80}, 50, ${0.55 + glow*0.45})`;
 
-
-        ctx.shadowBlur = 6;
-
-        ctx.shadowColor =
-            `rgb(${p.r},${p.g},${p.b})`;
-
+        ctx.shadowBlur = 8;
+        ctx.shadowColor = "rgba(255,190,70,0.8)";
 
         ctx.fill();
 
         ctx.shadowBlur = 0;
-
     });
-
-
-    /* Repeat automatically */
-
-    if (finished) {
-
-        setTimeout(() => {
-
-            createDots();
-
-        }, 2500);
-
-        return;
-    }
-
 
     requestAnimationFrame(animate);
 }
 
 
-/* =========================
+/* --------------------------------
    START
-========================= */
+   -------------------------------- */
 
-image.onload = function () {
+createTarget();
+createParticles();
 
-    resizeCanvas();
-
-};
+requestAnimationFrame(animate);
 
 </script>
 
