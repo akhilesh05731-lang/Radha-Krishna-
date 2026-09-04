@@ -2,10 +2,8 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport"
-      content="width=device-width, initial-scale=1.0">
-
-<title>Radha Krishna Dot Reveal</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Radha Krishna Dot Animation</title>
 
 <style>
 *{
@@ -14,17 +12,15 @@
     box-sizing:border-box;
 }
 
-html,body{
-    width:100%;
-    height:100%;
-    overflow:hidden;
+body{
     background:#000;
+    overflow:hidden;
+    width:100vw;
+    height:100vh;
 }
 
 canvas{
-    position:fixed;
-    left:0;
-    top:0;
+    display:block;
     width:100%;
     height:100%;
 }
@@ -37,387 +33,237 @@ canvas{
 
 <script>
 
-/* =================================================
-   SETTINGS
-================================================= */
-
-const IMAGE_NAME = "6351-Radhakrishna-min.jpg";
-
 const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
 
-let W = 0;
-let H = 0;
+let W, H;
+
+function resize(){
+    W = canvas.width = window.innerWidth;
+    H = canvas.height = window.innerHeight;
+}
+
+resize();
+window.addEventListener("resize", resize);
+
+
+// ===============================
+// PHOTO
+// ===============================
+
+const img = new Image();
+
+/*
+    Apni photo ka naam yaha rakho
+*/
+img.src = "radha-krishna.jpg";
+
+
+// ===============================
+// DOT SETTINGS
+// ===============================
 
 let dots = [];
 
-let image = new Image();
+const DOT_SIZE = 1.7;
+const GAP = 5;
 
-let animationStart = 0;
-let restarting = false;
-
-
-/* =================================================
-   CANVAS
-================================================= */
-
-function resize(){
-
-    const ratio = window.devicePixelRatio || 1;
-
-    W = window.innerWidth;
-    H = window.innerHeight;
-
-    canvas.width = W * ratio;
-    canvas.height = H * ratio;
-
-    canvas.style.width = W + "px";
-    canvas.style.height = H + "px";
-
-    ctx.setTransform(
-        ratio,
-        0,
-        0,
-        ratio,
-        0,
-        0
-    );
-
-    if(image.complete && image.naturalWidth > 0){
-        makeDots();
-    }
-}
-
-window.addEventListener("resize",resize);
+let progress = 0;
+let started = false;
 
 
-/* =================================================
-   LOAD IMAGE
-================================================= */
+// ===============================
+// CREATE DOTS
+// ===============================
 
-image.onload = function(){
-
-    resize();
-
-    makeDots();
-
-};
-
-image.onerror = function(){
-
-    /*
-      अगर image load नहीं होती तो black screen
-      की जगह message दिखाई देगा।
-    */
-
-    ctx.fillStyle="#000";
-    ctx.fillRect(0,0,W,H);
-
-    ctx.fillStyle="white";
-    ctx.textAlign="center";
-    
-        H/2
-    );
-
-    ctx.font="14px Arial";
-
-        H/2 + 30
-    );
-};
-
-
-/* =================================================
-   IMPORTANT
-================================================= */
-
-image.src = IMAGE_NAME;
-
-
-/* =================================================
-   CREATE DOTS
-================================================= */
-
-function makeDots(){
+function createDots(){
 
     dots = [];
 
-    const maxWidth = W * 0.94;
-    const maxHeight = H * 0.90;
+    const off = document.createElement("canvas");
+    const octx = off.getContext("2d");
 
-    const scale = Math.min(
-        maxWidth / image.naturalWidth,
-        maxHeight / image.naturalHeight
-    );
+    const size = Math.min(W * 0.82, H * 0.82);
 
-    const imgWidth =
-        image.naturalWidth * scale;
+    off.width = size;
+    off.height = size;
 
-    const imgHeight =
-        image.naturalHeight * scale;
-
-    const left =
-        (W - imgWidth) / 2;
-
-    const top =
-        (H - imgHeight) / 2;
-
-
-    /*
-      छोटा canvas बनाकर photo को sample करेंगे
-    */
-
-    const sample = document.createElement("canvas");
-
-    const sampleWidth =
-        Math.max(100,Math.floor(imgWidth / 4));
-
-    const sampleHeight =
-        Math.max(100,Math.floor(imgHeight / 4));
-
-    sample.width = sampleWidth;
-    sample.height = sampleHeight;
-
-    const sctx =
-        sample.getContext("2d");
-
-    sctx.drawImage(
-        image,
+    octx.drawImage(
+        img,
         0,
         0,
-        sampleWidth,
-        sampleHeight
+        size,
+        size
     );
 
+    const data = octx.getImageData(
+        0,
+        0,
+        size,
+        size
+    ).data;
 
-    const pixels =
-        sctx.getImageData(
-            0,
-            0,
-            sampleWidth,
-            sampleHeight
-        ).data;
+    for(let y = 0; y < size; y += GAP){
 
+        for(let x = 0; x < size; x += GAP){
 
-    /*
-      हर pixel को dot में बदलना
-    */
+            const i = (y * size + x) * 4;
 
-    for(let y=0;y<sampleHeight;y++){
+            const r = data[i];
+            const g = data[i+1];
+            const b = data[i+2];
+            const a = data[i+3];
 
-        for(let x=0;x<sampleWidth;x++){
+            const brightness =
+                (r + g + b) / 3;
 
-            const index =
-                (y * sampleWidth + x) * 4;
+            // Dark areas ko ignore karo
+            if(a > 50 && brightness > 25){
 
-            const r = pixels[index];
-            const g = pixels[index+1];
-            const b = pixels[index+2];
-            const a = pixels[index+3];
+                const targetX =
+                    W/2 - size/2 + x;
 
-            if(a < 20) continue;
+                const targetY =
+                    H/2 - size/2 + y;
 
+                // Random starting position
+                const angle =
+                    Math.random() * Math.PI * 2;
 
-            /*
-              कुछ dots skip करके
-              animation को beautiful बनाया गया है
-            */
+                const distance =
+                    Math.max(W,H) *
+                    (0.4 + Math.random()*0.7);
 
-            if(Math.random() > 0.62)
-                continue;
+                const startX =
+                    W/2 + Math.cos(angle)*distance;
 
+                const startY =
+                    H/2 + Math.sin(angle)*distance;
 
-            const finalX =
-                left +
-                (x / sampleWidth) * imgWidth;
+                dots.push({
 
-            const finalY =
-                top +
-                (y / sampleHeight) * imgHeight;
+                    x:startX,
+                    y:startY,
 
+                    tx:targetX,
+                    ty:targetY,
 
-            dots.push({
+                    r:r,
+                    g:g,
+                    b:b,
 
-                x:Math.random()*W,
+                    delay:Math.random()*0.45,
 
-                y:Math.random()*H,
-
-                targetX:finalX,
-
-                targetY:finalY,
-
-                r:r,
-
-                g:g,
-
-                b:b,
-
-                size:
-                    Math.random()*1.8 + 0.6,
-
-                delay:
-                    Math.random()*1800
-
-            });
-
+                    speed:
+                        0.015 +
+                        Math.random()*0.025
+                });
+            }
         }
-
     }
 
-
-    animationStart =
-        performance.now();
-
-    restarting = false;
-
-    requestAnimationFrame(animation);
+    started = true;
 }
 
 
-/* =================================================
-   SMOOTH
-================================================= */
+// ===============================
+// ANIMATION
+// ===============================
 
-function smooth(t){
+function animate(){
 
-    return t * t * (3 - 2*t);
+    ctx.fillStyle = "rgba(0,0,0,0.18)";
+    ctx.fillRect(0,0,W,H);
 
-}
+    progress += 0.004;
 
+    dots.forEach(dot => {
 
-/* =================================================
-   ANIMATION
-================================================= */
+        let p =
+            (progress - dot.delay);
 
-function animation(time){
+        if(p < 0) p = 0;
 
-    ctx.fillStyle="#000";
+        if(p > 1) p = 1;
 
-    ctx.fillRect(
-        0,
-        0,
-        W,
-        H
-    );
+        // Smooth movement
+        const ease =
+            p * p * (3 - 2*p);
 
+        dot.x +=
+            (dot.tx - dot.x) *
+            dot.speed *
+            3;
 
-    const elapsed =
-        time - animationStart;
+        dot.y +=
+            (dot.ty - dot.y) *
+            dot.speed *
+            3;
 
+        // Glow
+        ctx.shadowBlur = 8;
 
-    let complete = true;
+        ctx.shadowColor =
+            `rgb(${dot.r},${dot.g},${dot.b})`;
 
-
-    for(const dot of dots){
-
-        let progress =
-            (elapsed - dot.delay) / 5000;
-
-
-        if(progress < 0){
-
-            progress = 0;
-            complete = false;
-
-        }
-
-
-        if(progress < 1){
-
-            complete = false;
-
-        }
-
-
-        if(progress > 1)
-            progress = 1;
-
-
-        const eased =
-            smooth(progress);
-
-
-        /*
-          Dots धीरे-धीरे अपनी final जगह पर जाएँगे
-        */
-
-        const x =
-            dot.x +
-            (dot.targetX-dot.x)*eased;
-
-
-        const y =
-            dot.y +
-            (dot.targetY-dot.y)*eased;
-
-
-        /*
-          हल्का glow
-        */
+        ctx.fillStyle =
+            `rgb(${dot.r},${dot.g},${dot.b})`;
 
         ctx.beginPath();
 
         ctx.arc(
-            x,
-            y,
-            dot.size,
+            dot.x,
+            dot.y,
+            DOT_SIZE,
             0,
             Math.PI*2
         );
 
-
-        ctx.fillStyle =
-            "rgb(" +
-            dot.r + "," +
-            dot.g + "," +
-            dot.b + ")";
-
-
-        ctx.shadowBlur = 7;
-
-        ctx.shadowColor =
-            "rgb(" +
-            dot.r + "," +
-            dot.g + "," +
-            dot.b + ")";
-
-
         ctx.fill();
 
-        ctx.shadowBlur = 0;
+    });
 
-    }
+    ctx.shadowBlur = 0;
 
-
-    /*
-      Animation complete होने के बाद
-      थोड़ी देर रुककर फिर शुरू होगी
-    */
-
-    if(complete && !restarting){
-
-        restarting = true;
-
-        setTimeout(function(){
-
-            makeDots();
-
-        },3000);
-
-        return;
-
-    }
-
-
-    requestAnimationFrame(animation);
-
+    requestAnimationFrame(animate);
 }
 
 
-/* =================================================
-   START
-================================================= */
+// ===============================
+// START
+// ===============================
 
-resize();
+img.onload = () => {
+
+    createDots();
+
+    // Black screen se start
+    ctx.fillStyle = "#000";
+    ctx.fillRect(0,0,W,H);
+
+    animate();
+};
+
+
+// ===============================
+// PHOTO NOT FOUND
+// ===============================
+
+img.onerror = () => {
+
+    ctx.fillStyle = "#000";
+    ctx.fillRect(0,0,W,H);
+
+    ctx.fillStyle = "white";
+    ctx.font = "18px Arial";
+    ctx.textAlign = "center";
+
+    ctx.fillText(
+        "radha-krishna.jpg photo folder me rakho",
+        W/2,
+        H/2
+    );
+};
 
 </script>
 
